@@ -55,9 +55,9 @@ def data_proc(archivo):
         Raised if the file is empty, has inconsistent row lengths, or contains
         a value that cannot be converted to double precision.
     FileNotFoundError
-        Raised if ``archivo`` does not exist.
+        Raised if the input file does not exist.
     OSError
-        Raised if the file cannot be opened or read.
+        Raised if the file exists but cannot be opened or read.
 
     Notes
     -----
@@ -75,7 +75,7 @@ def data_proc(archivo):
             for index, line in enumerate(fp):
                 # The first line contains the column labels.
                 if index == 0:
-                    labels = line.strip().split('\t')
+                    labels = line.rstrip("\r\n").split('\t')
         
                     for idx, _ in enumerate(labels):
                         data.append(list())
@@ -83,7 +83,7 @@ def data_proc(archivo):
                 # Remaining lines contain the numerical data.
                 else:
                     # Use index - 1 conceptually because the first line is the header.
-                    d = line.strip().split('\t')
+                    d = line.rstrip("\r\n").split('\t')
                     # Checks the table size consistency compared to the columns labels
                     if len(d) != len(labels):
                         raise ValueError(

@@ -22,6 +22,8 @@ remain easy to modify.
 import os
 import sys
 from processing import data_proc
+from graphics import create_figure
+import matplotlib.pyplot as plt
 
 
 def setup(_dir="../datos"):
@@ -105,15 +107,38 @@ def main():
         setup()
          
         # Name of the experimental data file to process.
-        archivo = "susceptibilidad_alterna_Hdc_0Oe_Hac_1Oe_f_1kHz.txt"
-        #archivo = "misdatos.txt"
+        chi = "susceptibilidad_alterna_Hdc_0Oe_Hac_1Oe_f_1kHz.txt"
+        M_10K = "lazo_detallado_M(H)_10K.txt"
+        M_40K = "lazo_detallado_M(H)_40K.txt"
+        M_70K = "lazo_detallado_M(H)_70K.txt"
+        M_H_T = "lazos_M_variasT_variasH.txt"
+        
     
         # Load and inspect the data.
-        labels, data = data_proc(archivo)
+        l_chi, data_chi = data_proc(chi)
+        l_M_10K, data_M_10K = data_proc(M_10K)
+        l_M_40K, data_M_40K = data_proc(M_40K)
+        l_M_70K, data_M_70K = data_proc(M_70K)
+        l_M_H_T, data_M_H_T = data_proc(M_H_T)
+        
+        
+        labels = l_chi 
+        data = data_chi
+        xcol_num = 0
+        ycol_num = 1
+        fig_num = 0
+        title = "Magnetic Susceptibility vs T"
+        
+        create_figure(labels, data, title)
+        create_figure(labels, data, title, ycol_num = 2)
+
+        plt.show()
+        
     except Exception as e:
+        print(e)
         return -1
     
-    print_data(labels, data)
+    #print_data(l_M_10K, data_M_10K)
     
     return 0
 
