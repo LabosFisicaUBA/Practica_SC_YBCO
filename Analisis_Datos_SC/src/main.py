@@ -19,6 +19,13 @@ def setup( _dir = "../datos"):
     # for entry in dir :
     #     print(entry)
 
+def print_data (labels, data):
+        for idx, label in enumerate(labels):
+            print(label)
+            for d_idx, val in enumerate(data[idx]):
+                print("{0}\t{1}".format( d_idx, val) ) 
+            print("\n")
+        
 if __name__ == '__main__':
         
     setup()
@@ -27,9 +34,5 @@ if __name__ == '__main__':
     archivo = "susceptibilidad_alterna_Hdc_0Oe_Hac_1Oe_f_1kHz.txt"
     
     labels, data = data_proc(archivo)
-    for idx, label in enumerate(labels):
-        print(label)
-        for d_idx, val in enumerate(data[idx]):
-            print("{0}\t{1}".format( d_idx, val) ) 
-        print("\n")
+    print_data(labels, data)
     pass
