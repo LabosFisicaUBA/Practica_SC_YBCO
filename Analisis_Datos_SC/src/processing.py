@@ -25,6 +25,7 @@ floating-point values.
 
 import numpy as np
 from numpy import double
+from scipy.interpolate import PchipInterpolator
 import sys
 
 def data_proc(archivo):
@@ -209,10 +210,6 @@ def zero_crossings_linear(x, y):
             crossings.append(x_cross)
 
     return np.array(crossings)
-
-import numpy as np
-from scipy.interpolate import PchipInterpolator
-
 
 def prepare_branch(H, m):
     """
@@ -497,3 +494,96 @@ def demag_corrected_field_average(
     Jc = 30.0 * delta_M / width_cm
 
     return H_int, Jc, Nz
+
+def fwhm(x, y, peak_index=None, baseline=None):
+    """
+    Estimate the full width at half maximum of a single positive peak.
+
+    Parameters
+    ----------
+    x : array-like
+        Horizontal coordinate values.
+    y : array-like
+        Signal values.
+    peak_index : int or None, optional
+        Index of the peak maximum. If None, np.argmax(y) is used.
+    baseline : float or None, optional
+        Baseline value. If None, np.min(y) is used.
+
+    Returns
+    -------
+    fwhm : float
+        Full width at half maximum.
+    x_left : float
+        Left half-maximum crossing.
+    x_right : float
+        Right half-maximum crossing.
+    half_height : float
+        Half-maximum signal value.
+    x_peak : float
+        Peak position.
+    y_peak : float
+        Peak value.
+    """
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+
+    if x.shape != y.shape:
+        raise ValueError("x and y must have the same shape.")
+
+    # Sort by x, useful if the data were not already ordered.
+    order = np.argsort(x)
+    x = x[order]
+    y = y[order]
+
+    if peak_index is None:
+        peak_index = np.argmax(y)
+    else:
+        # Convert original peak index into sorted-array index.
+        peak_index = np.where(order == peak_index)[0][0]
+
+    if baseline is None:
+        baseline = np.min(y)
+
+    x_peak = x[peak_index]
+    y_peak = y[peak_index]
+
+    half_height = baseline + 0.5 * (y_peak - baseline)
+
+    # Left crossing.
+    left_side = y[:peak_index + 1]
+    left_candidates = np.where(left_side <= half_height)[0]
+
+    if len(left_candidates) == 0:
+        raise ValueError("Could not find left half-maximum crossing.")
+
+    i_left = left_candidates[-1]
+
+    if i_left == peak_index:
+        raise ValueError("Invalid left crossing: peak is already below half height.")
+
+    x0, x1 = x[i_left], x[i_left + 1]
+    y0, y1 = y[i_left], y[i_left + 1]
+
+    x_left = x0 + (half_height - y0) * (x1 - x0) / (y1 - y0)
+
+    # Right crossing.
+    right_side = y[peak_index:]
+    right_candidates = np.where(right_side <= half_height)[0]
+
+    if len(right_candidates) == 0:
+        raise ValueError("Could not find right half-maximum crossing.")
+
+    i_right = peak_index + right_candidates[0]
+
+    if i_right == peak_index:
+        raise ValueError("Invalid right crossing: peak is already below half height.")
+
+    x0, x1 = x[i_right - 1], x[i_right]
+    y0, y1 = y[i_right - 1], y[i_right]
+
+    x_right = x0 + (half_height - y0) * (x1 - x0) / (y1 - y0)
+
+    fwhm = x_right - x_left
+
+    return fwhm, x_left, x_right, half_height, x_peak, y_peak

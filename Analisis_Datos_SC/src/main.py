@@ -40,11 +40,14 @@ from processing import compute_delta_m
 from processing import jc_bean_square
 from processing import jc_bean_square_demag
 from processing import demag_corrected_field_average
+from processing import fwhm
 from graphics import create_figure
 from graphics import create_scatter_figure
 import matplotlib.pyplot as plt
 import configparser
-import numpy as np 
+import numpy as np
+import pandas as pd
+from multi_processing import process_multi_loops 
 
 
 def setup(_dir="../datos"):
@@ -228,8 +231,8 @@ def main():
         
         #labels = l_chi 
         #data = data_chi
-        labels = l_M_10K
-        data = data_M_10K
+        labels = l_M_40K
+        data = data_M_40K
         xcol_num = 0
         ycol_num = 2
         fig_num = 0
@@ -274,10 +277,42 @@ def main():
         Jc_avg_demag = Jc_avg_demag[order]
         
         title = "Critical Current J_c vs H"
+        fig5, ax5 = create_figure( ["Magnetic Field (Oe)", "Critical Current (A/cm^2)"], [H_grid, Jc_10K ], title, marker='s' )
         #fig5, ax5 = create_figure( ["Magnetic Field (Oe)", "Critical Current (A/cm^2)"], [H_int_avg, Jc_avg_demag ], title, marker='s' )
-        fig5, ax5 = create_scatter_figure( ["Magnetic Field (Oe)", "Critical Current (A/cm^2)"], [H_int_avg, Jc_avg_demag ], title  )
+        fig6, ax6 = create_scatter_figure( ["Magnetic Field (Oe)", "Critical Current (A/cm^2)"], [H_int_avg, Jc_avg_demag ], title  )
         
         plt.show()
+                
+        fwhm_val, x_left, x_right, half_height, x_peak, y_peak = fwhm(H_int_avg, Jc_avg_demag)
+
+        print("Peak position:", x_peak)
+        print("Peak value:", y_peak)
+        print("Half height:", half_height)
+        print("Left crossing:", x_left)
+        print("Right crossing:", x_right)
+        print("FWHM:", fwhm_val)
+        
+        out = process_multi_loops()
+        #print(out.columns)
+        
+        #print(out['H_Oe'])
+        #print(out['Jc_A_cm2'])
+        
+        #ax,fig = plt.subplots()
+        
+        legend = []
+        
+        for T_nom, g in out.groupby("T_K"):
+            g2 = g[g["H_Oe"] > 2000]  # evitar zona cercana a H=0
+            idx = g2["Jc_A_cm2"].idxmax()
+            plt.plot(g2['H_Oe'],g2['Jc_A_cm2'], label = T_nom )
+            legend.append(T_nom)
+        
+        plt.legend(legend)
+        plt.show()
+        
+        H_peak = g2.loc[idx, "H_Oe"]
+        Jc_peak = g2.loc[idx, "Jc_A_cm2"]
         
     except Exception as e:
         print(e)
