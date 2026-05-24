@@ -35,7 +35,13 @@ columns are plotted, are intentionally kept in this script for now.
 import os
 import sys
 from processing import data_proc
+from processing import split_hysteresis_branches
+from processing import compute_delta_m
+from processing import jc_bean_square
+from processing import jc_bean_square_demag
+from processing import demag_corrected_field_average
 from graphics import create_figure
+from graphics import create_scatter_figure
 import matplotlib.pyplot as plt
 import configparser
 import numpy as np 
@@ -201,8 +207,8 @@ def main():
         
         config = setup()
         params = config['params']
-        for key in params :
-            print("param:  {0}\t value: {1}".format(key, np.double(params[key])))
+        #for key in params :
+        #    print("param:  {0}\t value: {1}".format(key, np.double(params[key])))
          
         # Name of the experimental data file to process.
         chi = "susceptibilidad_alterna_Hdc_0Oe_Hac_1Oe_f_1kHz.txt"
@@ -220,16 +226,57 @@ def main():
         l_M_H_T, data_M_H_T = data_proc(M_H_T)
         
         
-        labels = l_chi 
-        data = data_chi
+        #labels = l_chi 
+        #data = data_chi
+        labels = l_M_10K
+        data = data_M_10K
         xcol_num = 0
-        ycol_num = 1
+        ycol_num = 2
         fig_num = 0
-        title = "Magnetic Susceptibility vs T"
+        #title = "Magnetic Susceptibility vs T"
+        title = "Magnetic Moment vs Field H"
         
-        fig1, ax1 = create_figure(labels, data, title)
-        fig2, ax2 = create_figure(labels, data, title, ycol_num = 2)
+        fig1, ax1 = create_figure(labels, data, title, xcol_num, ycol_num, marker='s')
+        
+        field = data[0]
+        moment = data[2]
+        
+        (H_up, m_up), (H_down, m_down), (H_turn, m_turn) = split_hysteresis_branches(field, moment)
+        title = "Magnetic Moment Up Branch"
+        fig2, ax2 = create_figure( ["Magnetic Field (Oe)","Magnetic Moment (emu)" ], [H_up, m_up] , title, marker='s')
 
+        title = "Magnetic Moment Down Branch"
+        fig3, ax3 = create_figure( ["Magnetic Field (Oe)","Magnetic Moment (emu)" ], [H_down, m_down] , title, marker='s')
+        
+        H_grid, m_up_i, m_down_i, delta_m = compute_delta_m( H_up, m_up, H_down, m_down )
+        title = "Delta m(H)"
+        fig4, ax4 = create_figure( ["Magnetic Field (Oe)","Magnetic Moment (emu)" ], [H_grid, delta_m], title, marker='s' )
+        
+        L = config.getfloat("params", "delta_x")
+        esp = config.getfloat("params", "espesor")
+        
+        L_cm = L*10.0
+        thickness_cm = esp*10.0
+        
+        Nz = 1.0 - 0.75 * thickness_cm / L_cm
+        
+        print(L_cm)
+        print(thickness_cm)
+        
+        Jc_10K = jc_bean_square(delta_m, L_cm = L_cm, thickness_cm=thickness_cm)
+        
+        H_int_grid, Jc_10K_demag, Nz = jc_bean_square_demag( H_grid, m_up_i, m_down_i, width_cm=L_cm, thickness_cm=thickness_cm, )
+        H_int_avg, Jc_avg_demag, Nz = demag_corrected_field_average( H_grid, m_up_i, m_down_i, width_cm=L_cm,thickness_cm=thickness_cm,)
+        
+        order = np.argsort(H_int_avg)
+
+        H_int_avg = H_int_avg[order]
+        Jc_avg_demag = Jc_avg_demag[order]
+        
+        title = "Critical Current J_c vs H"
+        #fig5, ax5 = create_figure( ["Magnetic Field (Oe)", "Critical Current (A/cm^2)"], [H_int_avg, Jc_avg_demag ], title, marker='s' )
+        fig5, ax5 = create_scatter_figure( ["Magnetic Field (Oe)", "Critical Current (A/cm^2)"], [H_int_avg, Jc_avg_demag ], title  )
+        
         plt.show()
         
     except Exception as e:
