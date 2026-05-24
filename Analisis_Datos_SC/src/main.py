@@ -4,20 +4,33 @@ main
 
 Entry-point script for the experimental-data analysis workflow.
 
-This module coordinates the first stage of the analysis pipeline:
+This module coordinates the current exploratory stage of the superconductivity
+data-analysis pipeline. It reads external configuration parameters, moves to the
+raw-data directory, loads selected experimental datasets, and generates basic
+Matplotlib figures for quick inspection.
 
-1. Move to the directory containing the raw data files.
-2. Select one experimental data file.
-3. Load the file using :func:`processing.data_proc`.
-4. Print the loaded columns for inspection.
+Current workflow
+----------------
+1. Read the ``parameters.ini`` configuration file.
+2. Move to the directory containing the raw experimental data files.
+3. Load susceptibility and magnetization datasets using
+   :func:`processing.data_proc`.
+4. Print numerical parameters from the configuration file.
+5. Generate exploratory plots using :func:`graphics.create_figure`.
+6. Display the generated Matplotlib figures.
 
 Notes
 -----
-This file is expected to change frequently while the analysis workflow is
-being developed. For that reason, the documentation is intentionally light:
-stable helper functions are documented, while experiment-specific logic should
-remain easy to modify.
+This file is expected to change frequently while the analysis workflow is being
+developed. For that reason, the documentation is intentionally light and focused
+on the current executable logic.
+
+Stable data-processing and plotting routines should be documented in their own
+modules. Experiment-specific choices, such as which files are loaded and which
+columns are plotted, are intentionally kept in this script for now.
 """
+
+
 
 import os
 import sys
@@ -30,7 +43,12 @@ import numpy as np
 
 def setup(_dir="../datos"):
     """
-    Move the current working directory to the data directory.
+    Read the configuration file and move to the data directory.
+
+    This function performs the basic initialization required by the exploratory
+    analysis script. It first reads the ``parameters.ini`` file from the current
+    working directory and then changes the process working directory to the
+    directory containing the raw data files.
 
     Parameters
     ----------
@@ -40,45 +58,65 @@ def setup(_dir="../datos"):
 
     Returns
     -------
-    None
+    config : configparser.ConfigParser
+        Parsed configuration object containing the parameters read from
+        ``parameters.ini``.
+
+    Raises
+    ------
+    FileNotFoundError
+        Raised if ``parameters.ini`` or the requested data directory does not
+        exist.
+    OSError
+        Raised if ``parameters.ini`` cannot be opened or if the working
+        directory cannot be changed.
 
     Notes
     -----
+    The configuration file is read before changing directory. Therefore,
+    ``parameters.ini`` is expected to be located in the directory from which the
+    script is executed, not necessarily inside the data directory.
+
     This function changes the global current working directory of the Python
     process using :func:`os.chdir`. This is convenient for quick exploratory
     scripts, but in larger workflows it is usually safer to build explicit file
-    paths instead of changing the process state.
+    paths instead of changing process state.
     """
 
-    # Read the parameters configuration file
+    # Read the parameters configuration file.
     config = configparser.ConfigParser()
+
     try:
-        with open('parameters.ini', 'r' ) as params_file:
-            config.read_file(params_file)           
+        with open("parameters.ini", "r") as params_file:
+            config.read_file(params_file)
+
     except FileNotFoundError as e:
         print(e, file=sys.stderr)
         raise FileNotFoundError(
-            f"parameters.ini file not found"
+            "parameters.ini file not found"
         ) from e
+
     except OSError as e:
         print(e, file=sys.stderr)
         raise OSError(
-            f"Could not open parameters.ini"
+            "Could not open parameters.ini"
         ) from e
-        
+
     # Move to the directory where the raw data files are stored.
     try:
         os.chdir(_dir)
+
+    except FileNotFoundError as e:
+        raise FileNotFoundError(
+            f"Directory not found: {_dir!r}"
+        ) from e
+
     except OSError as e:
         print(e, file=sys.stderr)
         raise OSError(
-            f"Could not change directory: {dir!r}"
+            f"Could not change directory: {_dir!r}"
         ) from e
-    except FileNotFoundError as e:
-        raise FileNotFoundError(
-            f"Directory not found: {dir!r}"
-        ) from e
-    
+
     return config
 
 
@@ -89,7 +127,7 @@ def print_data(labels, data):
     Parameters
     ----------
     labels : list of str
-        Column labels associated with the data arrays.
+        Column labels associated with the numerical data arrays.
     data : list of numpy.ndarray
         Column-wise numerical data. Each entry in ``data`` is assumed to
         correspond to the label with the same index in ``labels``.
@@ -100,8 +138,11 @@ def print_data(labels, data):
 
     Notes
     -----
-    This function is intended for quick inspection/debugging. It prints each
+    This function is intended for quick inspection and debugging. It prints each
     column separately, together with the row index of every value.
+
+    For large experimental datasets, this function can produce very verbose
+    output and should not be used as the main reporting mechanism.
     """
 
     for idx, label in enumerate(labels):
@@ -114,6 +155,42 @@ def print_data(labels, data):
 
 
 def main():
+    """
+    Run the current experimental-data analysis workflow.
+
+    The function initializes the workflow, reads numerical parameters from the
+    configuration file, loads the selected experimental datasets, creates basic
+    exploratory figures, and displays them using Matplotlib.
+
+    The currently loaded datasets are:
+
+    - AC magnetic susceptibility as a function of temperature.
+    - Detailed magnetization loops at 10 K, 40 K, and 70 K.
+    - Magnetization loops measured at several temperatures and fields.
+
+    Returns
+    -------
+    int
+        Exit status code. Returns ``0`` if the workflow finishes successfully
+        and ``-1`` if an exception is caught during execution.
+
+    Raises
+    ------
+    None
+        Exceptions raised by lower-level functions are caught inside this
+        function and reported to standard output.
+
+    Notes
+    -----
+    This function is intentionally script-like. The selected filenames and plotted
+    columns are currently hard-coded because the analysis stage is still
+    exploratory.
+
+    Once the workflow stabilizes, filename selection, plotted columns, titles,
+    and output options should be moved to ``parameters.ini`` or to a dedicated
+    configuration layer.
+    """
+    
     # Retrieve the Command Line parameters
     argv = sys.argv
     
@@ -150,8 +227,8 @@ def main():
         fig_num = 0
         title = "Magnetic Susceptibility vs T"
         
-        create_figure(labels, data, title)
-        create_figure(labels, data, title, ycol_num = 2)
+        fig1, ax1 = create_figure(labels, data, title)
+        fig2, ax2 = create_figure(labels, data, title, ycol_num = 2)
 
         plt.show()
         
