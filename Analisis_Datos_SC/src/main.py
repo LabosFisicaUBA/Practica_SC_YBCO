@@ -50,26 +50,36 @@ def setup(_dir="../datos"):
     paths instead of changing the process state.
     """
 
+    # Read the parameters configuration file
+    config = configparser.ConfigParser()
+    try:
+        with open('parameters.ini', 'r' ) as params_file:
+            config.read_file(params_file)           
+    except FileNotFoundError as e:
+        print(e, file=sys.stderr)
+        raise FileNotFoundError(
+            f"parameters.ini file not found"
+        ) from e
+    except OSError as e:
+        print(e, file=sys.stderr)
+        raise OSError(
+            f"Could not open parameters.ini"
+        ) from e
+        
     # Move to the directory where the raw data files are stored.
     try:
-        config = configparser.ConfigParser()
-        with open('parameters.ini', 'r' ) as params_file:
-            config.read_file(params_file)
-            
         os.chdir(_dir)
-        
-        return config
     except OSError as e:
         print(e, file=sys.stderr)
         raise OSError(
             f"Could not change directory: {dir!r}"
         ) from e
-        
     except FileNotFoundError as e:
         raise FileNotFoundError(
             f"Directory not found: {dir!r}"
         ) from e
-
+    
+    return config
 
 
 def print_data(labels, data):
