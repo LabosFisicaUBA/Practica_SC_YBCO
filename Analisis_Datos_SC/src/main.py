@@ -24,6 +24,8 @@ import sys
 from processing import data_proc
 from graphics import create_figure
 import matplotlib.pyplot as plt
+import configparser
+import numpy as np 
 
 
 def setup(_dir="../datos"):
@@ -50,7 +52,13 @@ def setup(_dir="../datos"):
 
     # Move to the directory where the raw data files are stored.
     try:
+        config = configparser.ConfigParser()
+        with open('parameters.ini', 'r' ) as params_file:
+            config.read_file(params_file)
+            
         os.chdir(_dir)
+        
+        return config
     except OSError as e:
         print(e, file=sys.stderr)
         raise OSError(
@@ -104,7 +112,10 @@ def main():
 
     try:
         
-        setup()
+        config = setup()
+        params = config['params']
+        for key in params :
+            print("param:  {0}\t value: {1}".format(key, np.double(params[key])))
          
         # Name of the experimental data file to process.
         chi = "susceptibilidad_alterna_Hdc_0Oe_Hac_1Oe_f_1kHz.txt"
