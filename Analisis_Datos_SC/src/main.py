@@ -301,18 +301,31 @@ def main():
         #ax,fig = plt.subplots()
         
         legend = []
+        peak_data = [[],[]]
+        T_val = []
         
         for T_nom, g in out.groupby("T_K"):
             g2 = g[g["H_Oe"] > 2000]  # evitar zona cercana a H=0
             idx = g2["Jc_A_cm2"].idxmax()
             plt.plot(g2['H_Oe'],g2['Jc_A_cm2'], label = T_nom )
-            legend.append(T_nom)
+            T_val.append(T_nom)
+            legend.append(str(T_nom)+" K")
+            peak_data[0].append(g2.loc[idx, "H_Oe"])
+            peak_data[1].append(g2.loc[idx, "Jc_A_cm2"])
         
+        plt.xlabel("H [Oe]")
+        plt.ylabel("J_c [A/cm^2]")       
         plt.legend(legend)
         plt.show()
         
-        H_peak = g2.loc[idx, "H_Oe"]
-        Jc_peak = g2.loc[idx, "Jc_A_cm2"]
+        #plt.plot(peak_data[0], peak_data[1], label = "J_c [A/cm^2]", marker='s', markersize=4 )
+        plt.plot(T_val, peak_data[1], label = "J_c [A/cm^2]", marker='s', markersize=4 )
+        #plt.xlabel("H [Oe]")
+        plt.xlabel("T [K]")
+        plt.ylabel("J_c [A/cm^2]")
+        plt.legend()
+        plt.show()
+        
         
     except Exception as e:
         print(e)
