@@ -56,14 +56,17 @@ def process_multi_loops(archivo = "lazos_M_variasT_variasH.txt" , columns = ["H_
         m_down = p_down(H_grid)
     
         delta_m = np.abs(m_down - m_up)
+        delta_m_max = delta_m.max()
+        delta_m_norm = delta_m/delta_m_max
         m_center = 0.5 * (m_down + m_up)
     
-        for H, dm, mc in zip(H_grid, delta_m, m_center):
+        for H, dm, dm_n, mc in zip(H_grid, delta_m, delta_m_norm,  m_center):
             results.append({
                 "T_K": T_nom,
                 "H_Oe": H,
                 "delta_m_emu": dm,
-                "m_center_emu": mc
+                "m_center_emu": mc,
+                "delta_m_norm_emu": dm_n
             })
     
     out = pd.DataFrame(results)
@@ -77,5 +80,11 @@ def process_multi_loops(archivo = "lazos_M_variasT_variasH.txt" , columns = ["H_
         20 * out["delta_M_emu_cm3"] /
         (a_cm * (1 - a_cm/(3*b_cm)))
     )
+    
+    
+#    out["Jc_norm_A_cm2"] = (
+#        20 * out["delta_m_norm_emu"] /
+#        (V_cm3 * (a_cm * (1 - a_cm/(3*b_cm))))
+#    )
 
     return out 

@@ -43,12 +43,72 @@ from processing import demag_corrected_field_average
 from processing import fwhm
 from graphics import create_figure
 from graphics import create_scatter_figure
+from graphics import colored_line
 import matplotlib.pyplot as plt
 import configparser
 import numpy as np
 import pandas as pd
 from multi_processing import process_multi_loops 
 
+def plot_basic(config, labels, data):
+    xcol_num = 0
+    ycol_num = 2
+    fig_num = 0
+    #title = "Magnetic Susceptibility vs T"
+    title = "Magnetic Moment vs Field H"
+    
+    fig1, ax1 = create_figure(labels, data, title, xcol_num, ycol_num, marker='s')
+    
+    field = data[0]
+    moment = data[2]
+    
+    (H_up, m_up), (H_down, m_down), (H_turn, m_turn) = split_hysteresis_branches(field, moment)
+    title = "Magnetic Moment Up Branch"
+    fig2, ax2 = create_figure( ["Magnetic Field (Oe)","Magnetic Moment (emu)" ], [H_up, m_up] , title, marker='s')
+
+    title = "Magnetic Moment Down Branch"
+    fig3, ax3 = create_figure( ["Magnetic Field (Oe)","Magnetic Moment (emu)" ], [H_down, m_down] , title, marker='s')
+    
+    H_grid, m_up_i, m_down_i, delta_m = compute_delta_m( H_up, m_up, H_down, m_down )
+    title = "Delta m(H)"
+    fig4, ax4 = create_figure( ["Magnetic Field (Oe)","Magnetic Moment (emu)" ], [H_grid, delta_m], title, marker='s' )
+    
+    L = config.getfloat("params", "delta_x")
+    esp = config.getfloat("params", "espesor")
+    
+    L_cm = L*10.0
+    thickness_cm = esp*10.0
+    
+    Nz = 1.0 - 0.75 * thickness_cm / L_cm
+    
+    print(L_cm)
+    print(thickness_cm)
+    
+    Jc_10K = jc_bean_square(delta_m, L_cm = L_cm, thickness_cm=thickness_cm)
+    
+    H_int_grid, Jc_10K_demag, Nz = jc_bean_square_demag( H_grid, m_up_i, m_down_i, width_cm=L_cm, thickness_cm=thickness_cm, )
+    H_int_avg, Jc_avg_demag, Nz = demag_corrected_field_average( H_grid, m_up_i, m_down_i, width_cm=L_cm,thickness_cm=thickness_cm,)
+    
+    order = np.argsort(H_int_avg)
+
+    H_int_avg = H_int_avg[order]
+    Jc_avg_demag = Jc_avg_demag[order]
+    
+    title = "Critical Current J_c vs H"
+    fig5, ax5 = create_figure( ["Magnetic Field (Oe)", "Critical Current (A/cm^2)"], [H_grid, Jc_10K ], title, marker='s' )
+    #fig5, ax5 = create_figure( ["Magnetic Field (Oe)", "Critical Current (A/cm^2)"], [H_int_avg, Jc_avg_demag ], title, marker='s' )
+    fig6, ax6 = create_scatter_figure( ["Magnetic Field (Oe)", "Critical Current (A/cm^2)"], [H_int_avg, Jc_avg_demag ], title  )
+    
+    plt.show()
+            
+    fwhm_val, x_left, x_right, half_height, x_peak, y_peak = fwhm(H_int_avg, Jc_avg_demag)
+
+    print("Peak position:", x_peak)
+    print("Peak value:", y_peak)
+    print("Half height:", half_height)
+    print("Left crossing:", x_left)
+    print("Right crossing:", x_right)
+    print("FWHM:", fwhm_val)
 
 def setup(_dir="../datos"):
     """
@@ -233,64 +293,8 @@ def main():
         #data = data_chi
         labels = l_M_40K
         data = data_M_40K
-        xcol_num = 0
-        ycol_num = 2
-        fig_num = 0
-        #title = "Magnetic Susceptibility vs T"
-        title = "Magnetic Moment vs Field H"
-        
-        fig1, ax1 = create_figure(labels, data, title, xcol_num, ycol_num, marker='s')
-        
-        field = data[0]
-        moment = data[2]
-        
-        (H_up, m_up), (H_down, m_down), (H_turn, m_turn) = split_hysteresis_branches(field, moment)
-        title = "Magnetic Moment Up Branch"
-        fig2, ax2 = create_figure( ["Magnetic Field (Oe)","Magnetic Moment (emu)" ], [H_up, m_up] , title, marker='s')
+        ##plot_basic(config, labels, data)
 
-        title = "Magnetic Moment Down Branch"
-        fig3, ax3 = create_figure( ["Magnetic Field (Oe)","Magnetic Moment (emu)" ], [H_down, m_down] , title, marker='s')
-        
-        H_grid, m_up_i, m_down_i, delta_m = compute_delta_m( H_up, m_up, H_down, m_down )
-        title = "Delta m(H)"
-        fig4, ax4 = create_figure( ["Magnetic Field (Oe)","Magnetic Moment (emu)" ], [H_grid, delta_m], title, marker='s' )
-        
-        L = config.getfloat("params", "delta_x")
-        esp = config.getfloat("params", "espesor")
-        
-        L_cm = L*10.0
-        thickness_cm = esp*10.0
-        
-        Nz = 1.0 - 0.75 * thickness_cm / L_cm
-        
-        print(L_cm)
-        print(thickness_cm)
-        
-        Jc_10K = jc_bean_square(delta_m, L_cm = L_cm, thickness_cm=thickness_cm)
-        
-        H_int_grid, Jc_10K_demag, Nz = jc_bean_square_demag( H_grid, m_up_i, m_down_i, width_cm=L_cm, thickness_cm=thickness_cm, )
-        H_int_avg, Jc_avg_demag, Nz = demag_corrected_field_average( H_grid, m_up_i, m_down_i, width_cm=L_cm,thickness_cm=thickness_cm,)
-        
-        order = np.argsort(H_int_avg)
-
-        H_int_avg = H_int_avg[order]
-        Jc_avg_demag = Jc_avg_demag[order]
-        
-        title = "Critical Current J_c vs H"
-        fig5, ax5 = create_figure( ["Magnetic Field (Oe)", "Critical Current (A/cm^2)"], [H_grid, Jc_10K ], title, marker='s' )
-        #fig5, ax5 = create_figure( ["Magnetic Field (Oe)", "Critical Current (A/cm^2)"], [H_int_avg, Jc_avg_demag ], title, marker='s' )
-        fig6, ax6 = create_scatter_figure( ["Magnetic Field (Oe)", "Critical Current (A/cm^2)"], [H_int_avg, Jc_avg_demag ], title  )
-        
-        plt.show()
-                
-        fwhm_val, x_left, x_right, half_height, x_peak, y_peak = fwhm(H_int_avg, Jc_avg_demag)
-
-        print("Peak position:", x_peak)
-        print("Peak value:", y_peak)
-        print("Half height:", half_height)
-        print("Left crossing:", x_left)
-        print("Right crossing:", x_right)
-        print("FWHM:", fwhm_val)
         
         out = process_multi_loops()
         #print(out.columns)
@@ -303,27 +307,48 @@ def main():
         legend = []
         peak_data = [[],[]]
         T_val = []
+        ##Jc_norm_data = []
         
         for T_nom, g in out.groupby("T_K"):
             g2 = g[g["H_Oe"] > 2000]  # evitar zona cercana a H=0
             idx = g2["Jc_A_cm2"].idxmax()
-            plt.plot(g2['H_Oe'],g2['Jc_A_cm2'], label = T_nom )
+            Jc_norm = g2['Jc_A_cm2']/ g2.loc[idx, "Jc_A_cm2"]
+            plt.plot(g2['H_Oe'],Jc_norm, label = T_nom )
             T_val.append(T_nom)
             legend.append(str(T_nom)+" K")
             peak_data[0].append(g2.loc[idx, "H_Oe"])
             peak_data[1].append(g2.loc[idx, "Jc_A_cm2"])
+            
+            ##Jc_norm_data.append(Jc_norm[idx])
+        
+        #print(Jc_norm_data)
         
         plt.xlabel("H [Oe]")
         plt.ylabel("J_c [A/cm^2]")       
         plt.legend(legend)
         plt.show()
         
+        x =  np.asarray(peak_data[0])
+        y =  np.asarray(peak_data[1])
+        ##y = np.asarray(Jc_norm_data)
+        #color = np.linspace(0,2, x.size )
+        color = np.linspace(0,10, np.asarray(T_val).size )
+        fig, ax = plt.subplots()
+        colored_line(peak_data[0], peak_data[1], color, ax ,  label = "J_c [A/cm^2]" ,  linewidth=2, cmap='cool' )
+        ##colored_line(peak_data[0], Jc_norm_data, color, ax ,  label = "J_c [A/cm^2]" ,  linewidth=2, cmap='cool_r' )
+
+        ax.set_xlabel("H [Oe]")
+        ax.set_ylabel("J_c [A/cm^2]")
+        ax.set_xlim(x.min(), x.max())
+        ax.set_ylim(y.min(), y.max())
+        
         #plt.plot(peak_data[0], peak_data[1], label = "J_c [A/cm^2]", marker='s', markersize=4 )
-        plt.plot(T_val, peak_data[1], label = "J_c [A/cm^2]", marker='s', markersize=4 )
+        #plt.plot(T_val, peak_data[1], label = "J_c [A/cm^2]", marker='s', markersize=4 )
         #plt.xlabel("H [Oe]")
-        plt.xlabel("T [K]")
-        plt.ylabel("J_c [A/cm^2]")
+        #plt.xlabel("T [K]")
+        #plt.ylabel("J_c [A/cm^2]")
         plt.legend()
+        
         plt.show()
         
         
