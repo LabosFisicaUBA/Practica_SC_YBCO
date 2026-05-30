@@ -49,6 +49,7 @@ import configparser
 import numpy as np
 import pandas as pd
 from multi_processing import process_multi_loops 
+from scipy.signal._peak_finding import find_peaks
 
 def plot_basic(config, labels, data):
     xcol_num = 0
@@ -305,49 +306,106 @@ def main():
         #ax,fig = plt.subplots()
         
         legend = []
-        peak_data = [[],[]]
+        peak_data = [[],[], [], []]
         T_val = []
         ##Jc_norm_data = []
         
         for T_nom, g in out.groupby("T_K"):
             g2 = g[g["H_Oe"] > 2000]  # evitar zona cercana a H=0
+            g2_p = g[g["H_Oe"] > 1500]  # evitar zona cercana a H=0
             idx = g2["Jc_A_cm2"].idxmax()
+            g3 = g[g["H_Oe"] < g2_p.loc[idx, "H_Oe"] ]  # evitar zona cercana a H=0
+            idx_m = g3["Jc_A_cm2"].idxmin()
             Jc_norm = g2['Jc_A_cm2']/ g2.loc[idx, "Jc_A_cm2"]
             plt.plot(g2['H_Oe'],Jc_norm, label = T_nom )
             T_val.append(T_nom)
             legend.append(str(T_nom)+" K")
+            
+            ##print("checkpoint get mins")
+            H_data = np.asarray(g3['H_Oe'])
+            Jc_data = np.asarray(g3['Jc_A_cm2']) 
+            
+            mins,_ = find_peaks( -Jc_data  )
+            if mins.size  > 0 :
+                index = int(mins[0])
+                H_min_val = H_data[index]
+                ##print("value: ", H_min_val)
+                peak_data[3].append(H_min_val)
+            else:
+                #H_min_val = H_data[0]
+                H_min_val = 0
+                ##print("value: ", H_min_val)
+                peak_data[3].append(H_min_val)
+    
+
             peak_data[0].append(g2.loc[idx, "H_Oe"])
             peak_data[1].append(g2.loc[idx, "Jc_A_cm2"])
+            peak_data[2].append(g3.loc[idx_m, "H_Oe"])
             
             ##Jc_norm_data.append(Jc_norm[idx])
         
         #print(Jc_norm_data)
+        #for value in peak_data[3]:
+        #    print(value)
         
         plt.xlabel("H [Oe]")
         plt.ylabel("J_c [A/cm^2]")       
         plt.legend(legend)
         plt.show()
         
-        x =  np.asarray(peak_data[0])
-        y =  np.asarray(peak_data[1])
-        ##y = np.asarray(Jc_norm_data)
-        #color = np.linspace(0,2, x.size )
-        color = np.linspace(0,10, np.asarray(T_val).size )
-        fig, ax = plt.subplots()
-        colored_line(peak_data[0], peak_data[1], color, ax ,  label = "J_c [A/cm^2]" ,  linewidth=2, cmap='cool' )
-        ##colored_line(peak_data[0], Jc_norm_data, color, ax ,  label = "J_c [A/cm^2]" ,  linewidth=2, cmap='cool_r' )
+        # x =  np.asarray(peak_data[0])
+        # y =  np.asarray(peak_data[1])
+        # ##y = np.asarray(Jc_norm_data)
+        # #color = np.linspace(0,2, x.size )
+        # color = np.linspace(0,10, np.asarray(T_val).size )
+        # fig, ax = plt.subplots()
+        # colored_line(peak_data[0], peak_data[1], color, ax ,  label = "J_c [A/cm^2]" ,  linewidth=2, cmap='cool' )
+        # ##colored_line(peak_data[0], Jc_norm_data, color, ax ,  label = "J_c [A/cm^2]" ,  linewidth=2, cmap='cool_r' )
 
-        ax.set_xlabel("H [Oe]")
-        ax.set_ylabel("J_c [A/cm^2]")
-        ax.set_xlim(x.min(), x.max())
-        ax.set_ylim(y.min(), y.max())
+        # ax.set_xlabel("H [Oe]")
+        # ax.set_ylabel("J_c [A/cm^2]")
+        # ax.set_xlim(x.min(), x.max())
+        # ax.set_ylim(y.min(), y.max())
         
+        ##H_min = peak_data[3]
+        ##H_max = peak_data[0]
+        ##zeros = np.zeros(np.asarray(H_min).size) 
+        #for idx, T in enumerate(T_val) :
+        ##ax.axhspan(zeros[0], H_min[0] , color="tab:blue", alpha=0.15, label="Vortex glass")
+
         #plt.plot(peak_data[0], peak_data[1], label = "J_c [A/cm^2]", marker='s', markersize=4 )
         #plt.plot(T_val, peak_data[1], label = "J_c [A/cm^2]", marker='s', markersize=4 )
+        #plt.plot(T_val, peak_data[0], label = "H_max_peak [Oe]", marker='s', markersize=4 )        
+        #plt.plot(T_val, peak_data[2], label = "H_min [Oe]", marker='s', markersize=4 )
+        #plt.plot(T_val, peak_data[3], label = "H_min_peak [Oe]", marker='s', markersize=4 )
         #plt.xlabel("H [Oe]")
+        #plt.ylabel("H [Oe]")
         #plt.xlabel("T [K]")
         #plt.ylabel("J_c [A/cm^2]")
-        plt.legend()
+        #plt.legend()
+        
+        _ , ax = plt.subplots()
+        
+        ##H_FE = np.max(np.asarray(peak_data[3]))
+        
+        #ax.stackplot(T_val, np.ones(np.asarray(peak_data[3]).size) * np.max(g["H_Oe"]) , color="tab:red", alpha=0.5)
+        ax.stackplot(T_val, np.ones(np.asarray(peak_data[3]).size) * 35000  , color="tab:red", alpha=0.5)
+        ax.plot(T_val, peak_data[0], label = "H_max_peak [Oe]", marker='s', markersize=4 )
+        ax.stackplot(T_val, peak_data[0], color="tab:blue", alpha=0.5)
+
+        ax.plot(T_val, peak_data[3], label = "H_min_peak [Oe]", marker='s', markersize=4 )
+        ax.stackplot(T_val, peak_data[3], color="tab:orange", alpha=0.5)
+        
+        ax.set_xlabel("T [K]")
+        ax.set_ylabel("H [Oe]")
+        ax.legend(loc="upper right")
+        ax.grid(alpha=0.3)
+        ##ax.text(0.1, 0.02, "First PL Zone", transform=ax.transAxes, fontsize=12 )
+        ax.text(0.1, 0.04, "First Power Law Zone", transform=ax.transAxes, fontsize=12 )
+        ##ax.text(0.25, 0.13, "FE Zone", transform=ax.transAxes, fontsize=12 )
+        ax.text(0.15, 0.25, "SMP/Fishtail Zone", transform=ax.transAxes, fontsize=12 )
+        ax.text(0.5, 0.5, "Second Power Law Zone", transform=ax.transAxes, fontsize=12 )
+        
         
         plt.show()
         
